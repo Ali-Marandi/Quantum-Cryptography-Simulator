@@ -1,4 +1,5 @@
-qiskit
-cirq
 numpy
 matplotlib
+customtkinter
+darkdetect
+pyinstaller
