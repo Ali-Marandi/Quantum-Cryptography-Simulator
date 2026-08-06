@@ -1,46 +1,57 @@
-# Quantum Cryptography Simulator (Commercial Edition)
+# Quantum Cryptography Simulator (Enterprise Edition)
 
 ## Overview
-This is a professional-grade Quantum Cryptography Simulation and Experimentation Platform. It provides a robust environment for simulating, analyzing, and visualizing quantum key distribution (QKD) protocols with a modern, beautiful user interface.
+This is a comprehensive, commercial-grade Quantum Cryptography Simulation and Experimentation Platform. It is designed for researchers, educators, and cybersecurity professionals to simulate advanced QKD protocols in realistic network environments.
 
-## Key Features
-- **Advanced Protocol Support**: Full implementation of the **BB84** protocol with support for B92 and E91 in development.
-- **Realistic Channel Simulation**: Configurable Quantum Bit Error Rate (QBER) and environmental noise models.
-- **Eavesdropping Analysis**: Simulate "Eve" with adjustable interception rates to test protocol security.
-- **Post-Processing**: Integrated privacy amplification using SHA-256 hashing.
-- **Interactive Dashboard**: Real-time visualization of key distribution statistics and error analysis.
-- **Modern UI**: Built with a sleek dark-themed interface for professional use.
+## Enterprise Features
 
-## Advanced Capabilities
-- **Eve Detection**: Automatic detection of eavesdropping based on QBER threshold analysis.
-- **Detailed Logging**: Step-by-step breakdown of Alice and Bob's bases, bits, and sifting process.
-- **Security Metrics**: Live charts showing key generation efficiency and error rates.
+### 1. Advanced Protocol Suite
+- **BB84**: Standard 4-state protocol.
+- **B92**: Two-state non-orthogonal protocol.
+- **E91**: Entanglement-based Ekert91 protocol with Bell inequality verification.
+
+### 2. Quantum Networking (v1.3.0)
+- **Multi-node Topology**: Design networks with multiple end-nodes and repeaters.
+- **Quantum Repeaters**: Simulate intermediate nodes for long-distance key distribution.
+- **Key Routing**: Simplified XOR-based key routing across multiple hops.
+
+### 3. Hardware Emulation (v1.4.0)
+- **Photon Source Modeling**: Switch between Ideal Single Photon sources and Weak Coherent Pulses (WCP).
+- **Detector Imperfections**: Configurable efficiency, dark count rates, and dead times.
+- **Equipment Library**: Built-in profiles for industry-leading hardware like **ID Quantique** and **Toshiba**.
+
+### 4. Advanced Attack Suite (v1.5.0)
+- **PNS Attack**: Simulate Photon Number Splitting on WCP sources.
+- **Detector Blinding**: Physical layer attacks on quantum detectors.
+- **Security Score**: Automated penetration testing and real-time security rating.
+
+### 5. Integration & Standards (v1.6.0)
+- **Python SDK**: A professional API for integrating the simulation engine into other software.
+- **ETSI GS QKD 014**: Generate compliance reports based on European telecommunications standards.
+
+### 6. UX & EdTech (v1.7.0)
+- **Bloch Sphere Visualization**: Real-time 3D rendering of quantum states.
+- **Interactive Lab Mode**: Step-by-step guided tutorials for students.
+- **Fiber Modeling**: QBER calculation based on fiber distance and attenuation.
 
 ## Installation & Usage
-### Windows (Recommended)
+### Windows
 Download the latest `QuantumCryptoSimulator.exe` from the [Releases](https://github.com/Ali-Marandi/Quantum-Cryptography-Simulator/releases) page.
 
-### From Source
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/Ali-Marandi/Quantum-Cryptography-Simulator.git
-   cd Quantum-Cryptography-Simulator
-   ```
-2. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-3. Run the application:
-   ```bash
-   python main.py
-   ```
+### Python SDK
+```python
+from src.engine.sdk import QCryptoSDK
+sdk = QCryptoSDK()
+results = sdk.run_bb84(n_bits=500, qber=0.02)
+print(results['qber'])
+```
 
 ## Technologies Used
-- **Python 3.11**
-- **CustomTkinter**: For the modern desktop UI.
-- **NumPy**: For high-performance quantum state simulations.
-- **Matplotlib**: For real-time data visualization.
-- **PyInstaller**: For standalone Windows distribution.
+- **Python 3.12**
+- **CustomTkinter**: Modern UI framework.
+- **NumPy & SciPy**: High-performance physics simulation.
+- **Matplotlib**: 2D/3D data visualization.
+- **Pandas**: Data export and analysis.
 
 ## License
-Commercial Grade - All Rights Reserved.
+Enterprise Grade - All Rights Reserved.
