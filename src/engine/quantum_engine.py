@@ -44,6 +44,36 @@ class QuantumState:
         z = np.abs(a)**2 - np.abs(b)**2
         return x, y, z
 
+class PhotonSource:
+    """Models different types of photon sources."""
+    def __init__(self, source_type="SinglePhoton", mean_photon_number=0.1):
+        self.source_type = source_type
+        self.mu = mean_photon_number # Mean photon number for WCP
+
+    def emit(self, state):
+        if self.source_type == "WCP":
+            # Poisson distribution for photon number
+            n = np.random.poisson(self.mu)
+            if n == 0: return None # Vacuum state
+            return [state] * n # Multiple photons (PNS vulnerability)
+        return [state]
+
+class Detector:
+    """Models quantum detectors with imperfections."""
+    def __init__(self, efficiency=0.1, dark_count_rate=1e-5, dead_time=100e-9):
+        self.efficiency = efficiency
+        self.dark_count_rate = dark_count_rate
+        self.dead_time = dead_time
+
+    def detect(self, state):
+        # Efficiency check
+        if np.random.random() > self.efficiency:
+            return None
+        # Dark count check
+        if np.random.random() < self.dark_count_rate:
+            return np.random.randint(0, 2)
+        return None # Placeholder for real detection logic
+
 class QuantumChannel:
     """Simulates a quantum channel with noise and distance modeling."""
     def __init__(self, source_node, target_node, qber=0.0, distance=0.0, attenuation_coeff=0.2):
@@ -55,6 +85,7 @@ class QuantumChannel:
         self.qber = min(0.5, qber + distance_noise)
 
     def transmit(self, state):
+        if state is None: return None
         if np.random.random() < self.qber:
             return QuantumState([state.state[1], state.state[0]])
         return state

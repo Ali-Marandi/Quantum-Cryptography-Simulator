@@ -70,6 +70,12 @@ class App(ctk.CTk):
         self.export_button = ctk.CTkButton(self.sidebar, text="Export Results (CSV)", command=self.export_data, fg_color="green", hover_color="darkgreen")
         self.export_button.grid(row=13, column=0, padx=20, pady=10)
 
+        # Hardware Emulation
+        self.hw_label = ctk.CTkLabel(self.sidebar, text="Hardware Profile:")
+        self.hw_label.grid(row=14, column=0, padx=20, pady=(10, 0))
+        self.hw_menu = ctk.CTkOptionMenu(self.sidebar, values=["Standard", "ID Quantique Clavis3", "Toshiba QKD"])
+        self.hw_menu.grid(row=15, column=0, padx=20, pady=(0, 10))
+
         # Main Content
         self.tabview = ctk.CTkTabview(self)
         self.tabview.grid(row=0, column=1, padx=(20, 20), pady=(20, 20), sticky="nsew")
@@ -217,6 +223,10 @@ class App(ctk.CTk):
         eve_rate = self.eve_rate_slider.get()
         selected_protocol = self.protocol_menu.get()
 
+        hw_profile = self.hw_menu.get()
+        source_type = "WCP" if hw_profile != "Standard" else "SinglePhoton"
+        efficiency = 0.25 if hw_profile == "ID Quantique Clavis3" else (0.35 if hw_profile == "Toshiba QKD" else 1.0)
+
         if len(self.network.nodes) > 2:
             # Network Mode
             net_protocol = NetworkQKD(self.network, "Alice", "Bob", protocol_type=selected_protocol, n_bits=n_bits)
@@ -225,7 +235,8 @@ class App(ctk.CTk):
         else:
             # Direct Mode
             if selected_protocol == "BB84":
-                protocol = BB84Protocol(n_bits=n_bits, qber=qber, distance=distance, eve_present=eve_present, eve_interception_rate=eve_rate)
+                protocol = BB84Protocol(n_bits=n_bits, qber=qber, distance=distance, eve_present=eve_present, 
+                                        eve_interception_rate=eve_rate, source_type=source_type, detector_efficiency=efficiency)
                 threshold = 0.11 + (protocol.channel.qber - qber)
             elif selected_protocol == "B92":
                 protocol = B92Protocol(n_bits=n_bits, qber=qber, distance=distance, eve_present=eve_present, eve_interception_rate=eve_rate)
