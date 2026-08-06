@@ -2,12 +2,13 @@ import numpy as np
 from .quantum_engine import QuantumState, QuantumChannel, measure
 
 class BB84Protocol:
-    def __init__(self, n_bits=100, qber=0.0, eve_present=False, eve_interception_rate=0.0):
+    def __init__(self, n_bits=100, qber=0.0, distance=0.0, eve_present=False, eve_interception_rate=0.0):
         self.n_bits = n_bits
         self.qber = qber
+        self.distance = distance
         self.eve_present = eve_present
         self.eve_interception_rate = eve_interception_rate
-        self.channel = QuantumChannel(qber=qber)
+        self.channel = QuantumChannel(qber=qber, distance=distance)
 
     def run(self):
         # 1. Alice prepares qubits
@@ -74,12 +75,13 @@ class BB84Protocol:
         }
 
 class B92Protocol:
-    def __init__(self, n_bits=100, qber=0.0, eve_present=False, eve_interception_rate=0.0):
+    def __init__(self, n_bits=100, qber=0.0, distance=0.0, eve_present=False, eve_interception_rate=0.0):
         self.n_bits = n_bits
         self.qber = qber
+        self.distance = distance
         self.eve_present = eve_present
         self.eve_interception_rate = eve_interception_rate
-        self.channel = QuantumChannel(qber=qber)
+        self.channel = QuantumChannel(qber=qber, distance=distance)
 
     def run(self):
         # 1. Alice prepares qubits
@@ -144,9 +146,10 @@ class B92Protocol:
         }
 
 class E91Protocol:
-    def __init__(self, n_bits=100, qber=0.0, eve_present=False, eve_interception_rate=0.0):
+    def __init__(self, n_bits=100, qber=0.0, distance=0.0, eve_present=False, eve_interception_rate=0.0):
         self.n_bits = n_bits
         self.qber = qber
+        self.distance = distance
         self.eve_present = eve_present
         self.eve_interception_rate = eve_interception_rate
 

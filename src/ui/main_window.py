@@ -1,9 +1,12 @@
 import customtkinter as ctk
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
+import os
 from ..engine.protocols import BB84Protocol, B92Protocol, E91Protocol
-from ..engine.post_processing import privacy_amplification
+from ..engine.post_processing import privacy_amplification, cascade_error_correction, export_results_to_file
+from ..engine.quantum_engine import QuantumState
 
 ctk.set_appearance_mode("Dark")
 ctk.set_default_color_theme("blue")
@@ -12,19 +15,19 @@ class App(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        self.title("Quantum Cryptography Simulator - Commercial Edition")
-        self.geometry("1100x700")
+        self.title("Quantum Cryptography Simulator v1.2.0 - Professional Edition")
+        self.geometry("1200x800")
 
         # Layout
         self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(0, weight=1)
 
         # Sidebar
-        self.sidebar = ctk.CTkFrame(self, width=200, corner_radius=0)
+        self.sidebar = ctk.CTkFrame(self, width=220, corner_radius=0)
         self.sidebar.grid(row=0, column=0, sticky="nsew")
-        self.sidebar.grid_rowconfigure(10, weight=1)
+        self.sidebar.grid_rowconfigure(15, weight=1)
 
-        self.logo_label = ctk.CTkLabel(self.sidebar, text="Q-Crypto Sim", font=ctk.CTkFont(size=20, weight="bold"))
+        self.logo_label = ctk.CTkLabel(self.sidebar, text="Q-Crypto Pro", font=ctk.CTkFont(size=22, weight="bold"))
         self.logo_label.grid(row=0, column=0, padx=20, pady=(20, 10))
 
         # Protocol Selection
@@ -40,45 +43,65 @@ class App(ctk.CTk):
         self.bits_slider.grid(row=4, column=0, padx=20, pady=(0, 10))
         self.bits_slider.set(100)
 
-        self.noise_label = ctk.CTkLabel(self.sidebar, text="Channel Noise (QBER): 0%")
-        self.noise_label.grid(row=5, column=0, padx=20, pady=(10, 0))
+        self.distance_label = ctk.CTkLabel(self.sidebar, text="Fiber Distance: 0 km")
+        self.distance_label.grid(row=5, column=0, padx=20, pady=(10, 0))
+        self.distance_slider = ctk.CTkSlider(self.sidebar, from_=0, to=100, command=self.update_distance_label)
+        self.distance_slider.grid(row=6, column=0, padx=20, pady=(0, 10))
+        self.distance_slider.set(0)
+
+        self.noise_label = ctk.CTkLabel(self.sidebar, text="Base Noise (QBER): 0%")
+        self.noise_label.grid(row=7, column=0, padx=20, pady=(10, 0))
         self.noise_slider = ctk.CTkSlider(self.sidebar, from_=0, to=0.5, command=self.update_noise_label)
-        self.noise_slider.grid(row=6, column=0, padx=20, pady=(0, 10))
+        self.noise_slider.grid(row=8, column=0, padx=20, pady=(0, 10))
         self.noise_slider.set(0)
 
-        self.eve_switch = ctk.CTkSwitch(self.sidebar, text="Enable Eavesdropper (Eve)")
-        self.eve_switch.grid(row=7, column=0, padx=20, pady=10)
+        self.eve_switch = ctk.CTkSwitch(self.sidebar, text="Enable Eve")
+        self.eve_switch.grid(row=9, column=0, padx=20, pady=10)
 
         self.eve_rate_label = ctk.CTkLabel(self.sidebar, text="Eve Interception: 50%")
-        self.eve_rate_label.grid(row=8, column=0, padx=20, pady=(10, 0))
+        self.eve_rate_label.grid(row=10, column=0, padx=20, pady=(10, 0))
         self.eve_rate_slider = ctk.CTkSlider(self.sidebar, from_=0, to=1, command=self.update_eve_label)
-        self.eve_rate_slider.grid(row=9, column=0, padx=20, pady=(0, 10))
+        self.eve_rate_slider.grid(row=11, column=0, padx=20, pady=(0, 10))
         self.eve_rate_slider.set(0.5)
 
         self.run_button = ctk.CTkButton(self.sidebar, text="Run Simulation", command=self.run_simulation)
-        self.run_button.grid(row=11, column=0, padx=20, pady=20)
+        self.run_button.grid(row=12, column=0, padx=20, pady=10)
+
+        self.export_button = ctk.CTkButton(self.sidebar, text="Export Results (CSV)", command=self.export_data, fg_color="green", hover_color="darkgreen")
+        self.export_button.grid(row=13, column=0, padx=20, pady=10)
 
         # Main Content
         self.tabview = ctk.CTkTabview(self)
         self.tabview.grid(row=0, column=1, padx=(20, 20), pady=(20, 20), sticky="nsew")
         self.tabview.add("Dashboard")
+        self.tabview.add("Bloch Sphere")
         self.tabview.add("Detailed Log")
         self.tabview.add("Security Analysis")
 
         # Dashboard Tab
         self.dashboard_frame = self.tabview.tab("Dashboard")
-        self.dashboard_frame.grid_columnconfigure((0, 1), weight=1)
+        self.dashboard_frame.grid_columnconfigure((0, 1, 2), weight=1)
         
         self.stat_frame = ctk.CTkFrame(self.dashboard_frame)
-        self.stat_frame.grid(row=0, column=0, columnspan=2, padx=10, pady=10, sticky="nsew")
+        self.stat_frame.grid(row=0, column=0, columnspan=3, padx=10, pady=10, sticky="nsew")
         
-        self.qber_stat = self.create_stat_widget(self.stat_frame, "Calculated QBER", "0%", 0)
-        self.key_len_stat = self.create_stat_widget(self.stat_frame, "Sifted Key Length", "0", 1)
-        self.eve_detect_stat = self.create_stat_widget(self.stat_frame, "Eve Detected", "No", 2)
+        self.qber_stat = self.create_stat_widget(self.stat_frame, "Total QBER", "0%", 0)
+        self.key_len_stat = self.create_stat_widget(self.stat_frame, "Sifted Key", "0", 1)
+        self.corrected_stat = self.create_stat_widget(self.stat_frame, "Corrected Key", "0", 2)
+        self.eve_detect_stat = self.create_stat_widget(self.stat_frame, "Eve Detected", "No", 3)
 
         self.chart_frame = ctk.CTkFrame(self.dashboard_frame)
-        self.chart_frame.grid(row=1, column=0, columnspan=2, padx=10, pady=10, sticky="nsew")
+        self.chart_frame.grid(row=1, column=0, columnspan=3, padx=10, pady=10, sticky="nsew")
         self.dashboard_frame.grid_rowconfigure(1, weight=1)
+
+        # Bloch Sphere Tab
+        self.bloch_frame = self.tabview.tab("Bloch Sphere")
+        self.fig_bloch = plt.figure(figsize=(6, 6), dpi=100)
+        self.fig_bloch.patch.set_facecolor('#2b2b2b')
+        self.ax_bloch = self.fig_bloch.add_subplot(111, projection='3d')
+        self.canvas_bloch = FigureCanvasTkAgg(self.fig_bloch, master=self.bloch_frame)
+        self.canvas_bloch.get_tk_widget().pack(fill="both", expand=True)
+        self.draw_empty_bloch()
 
         # Detailed Log Tab
         self.log_text = ctk.CTkTextbox(self.tabview.tab("Detailed Log"), width=800, height=500)
@@ -91,18 +114,19 @@ class App(ctk.CTk):
         self.final_key_display = ctk.CTkTextbox(self.security_frame, height=100)
         self.final_key_display.pack(padx=20, pady=10, fill="x")
 
+        # Main Chart
         self.fig, self.ax = plt.subplots(figsize=(5, 3), dpi=100)
         self.fig.patch.set_facecolor('#2b2b2b')
         self.ax.set_facecolor('#2b2b2b')
         self.ax.tick_params(colors='white')
-        self.ax.xaxis.label.set_color('white')
-        self.ax.yaxis.label.set_color('white')
         self.canvas = FigureCanvasTkAgg(self.fig, master=self.chart_frame)
         self.canvas.get_tk_widget().pack(fill="both", expand=True)
 
+        self.last_results = None
+
     def create_stat_widget(self, parent, label, value, col):
         frame = ctk.CTkFrame(parent, fg_color="transparent")
-        frame.grid(row=0, column=col, padx=20, pady=10)
+        frame.grid(row=0, column=col, padx=15, pady=10)
         l = ctk.CTkLabel(frame, text=label, font=ctk.CTkFont(size=12))
         l.pack()
         v = ctk.CTkLabel(frame, text=value, font=ctk.CTkFont(size=20, weight="bold"))
@@ -112,67 +136,101 @@ class App(ctk.CTk):
     def update_bits_label(self, value):
         self.bits_label.configure(text=f"Number of Bits: {int(value)}")
 
+    def update_distance_label(self, value):
+        self.distance_label.configure(text=f"Fiber Distance: {int(value)} km")
+
     def update_noise_label(self, value):
-        self.noise_label.configure(text=f"Channel Noise (QBER): {int(value*100)}%")
+        self.noise_label.configure(text=f"Base Noise (QBER): {int(value*100)}%")
 
     def update_eve_label(self, value):
         self.eve_rate_label.configure(text=f"Eve Interception: {int(value*100)}%")
 
+    def draw_empty_bloch(self):
+        self.ax_bloch.clear()
+        self.ax_bloch.set_facecolor('#2b2b2b')
+        u, v = np.mgrid[0:2*np.pi:20j, 0:np.pi:10j]
+        x = np.cos(u)*np.sin(v)
+        y = np.sin(u)*np.sin(v)
+        z = np.cos(v)
+        self.ax_bloch.plot_wireframe(x, y, z, color="white", alpha=0.1)
+        self.ax_bloch.plot([0, 0], [0, 0], [-1, 1], color="white", alpha=0.5)
+        self.ax_bloch.plot([0, 0], [-1, 1], [0, 0], color="white", alpha=0.5)
+        self.ax_bloch.plot([-1, 1], [0, 0], [0, 0], color="white", alpha=0.5)
+        self.ax_bloch.set_axis_off()
+        self.canvas_bloch.draw()
+
     def run_simulation(self):
         n_bits = int(self.bits_slider.get())
         qber = self.noise_slider.get()
+        distance = self.distance_slider.get()
         eve_present = self.eve_switch.get()
         eve_rate = self.eve_rate_slider.get()
         selected_protocol = self.protocol_menu.get()
 
         if selected_protocol == "BB84":
-            protocol = BB84Protocol(n_bits=n_bits, qber=qber, eve_present=eve_present, eve_interception_rate=eve_rate)
-            threshold = 0.11 + qber
+            protocol = BB84Protocol(n_bits=n_bits, qber=qber, distance=distance, eve_present=eve_present, eve_interception_rate=eve_rate)
+            threshold = 0.11 + (protocol.channel.qber - qber)
         elif selected_protocol == "B92":
-            protocol = B92Protocol(n_bits=n_bits, qber=qber, eve_present=eve_present, eve_interception_rate=eve_rate)
-            threshold = 0.05 + qber # B92 is more sensitive
-        elif selected_protocol == "E91":
-            protocol = E91Protocol(n_bits=n_bits, qber=qber, eve_present=eve_present, eve_interception_rate=eve_rate)
-            threshold = 0.15 + qber # E91 uses Bell inequality
+            protocol = B92Protocol(n_bits=n_bits, qber=qber, distance=distance, eve_present=eve_present, eve_interception_rate=eve_rate)
+            threshold = 0.05 + (protocol.channel.qber - qber)
+        else:
+            protocol = E91Protocol(n_bits=n_bits, qber=qber, distance=distance, eve_present=eve_present, eve_interception_rate=eve_rate)
+            threshold = 0.15 + (protocol.channel.qber - qber)
         
         results = protocol.run()
+        
+        # Error Correction
+        corrected_bits, final_errors = cascade_error_correction(results['alice_sifted'], results['bob_sifted'])
+        results['corrected_bits'] = corrected_bits
+        results['final_errors'] = final_errors
+        
+        self.last_results = results
 
         # Update Stats
         self.qber_stat.configure(text=f"{results['qber']*100:.1f}%")
         self.key_len_stat.configure(text=str(len(results['alice_sifted'])))
+        self.corrected_stat.configure(text=str(len(corrected_bits)))
         
-        # Eve detection logic
         eve_detected = results['qber'] > threshold
         self.eve_detect_stat.configure(text="YES" if eve_detected else "No", text_color="red" if eve_detected else "white")
 
         # Update Log
         self.log_text.delete("1.0", "end")
-        self.log_text.insert("end", f"--- {selected_protocol} Protocol Simulation ---\n")
-        self.log_text.insert("end", f"Alice's bits: {results['alice_bits'][:50]}...\n")
-        if "alice_bases" in results:
-            self.log_text.insert("end", f"Alice's bases: {results['alice_bases'][:50]}...\n")
-        if "bob_bases" in results:
-            self.log_text.insert("end", f"Bob's bases: {results['bob_bases'][:50]}...\n")
-        self.log_text.insert("end", f"Sifted key length: {len(results['alice_sifted'])}\n")
-        if eve_present:
-            self.log_text.insert("end", f"Eve intercepted {results['eve_info']['interceptions']} qubits.\n")
+        self.log_text.insert("end", f"--- {selected_protocol} v1.2.0 Simulation ---\n")
+        self.log_text.insert("end", f"Channel Distance: {distance} km\n")
+        self.log_text.insert("end", f"Effective QBER: {results['qber']*100:.2f}%\n")
+        self.log_text.insert("end", f"Errors after Cascade: {final_errors}\n")
+        self.log_text.insert("end", f"Final Key (first 20 bits): {corrected_bits[:20]}...\n")
+
+        # Update Bloch Sphere (showing last state)
+        self.draw_empty_bloch()
+        # Visualize |0>, |1>, |+>, |->
+        states = [QuantumState.zero(), QuantumState.one(), QuantumState.plus(), QuantumState.minus()]
+        colors = ['red', 'blue', 'green', 'yellow']
+        for s, c in zip(states, colors):
+            x, y, z = s.get_bloch_coordinates()
+            self.ax_bloch.quiver(0, 0, 0, x, y, z, color=c, length=1.0, arrow_length_ratio=0.1)
 
         # Final Key
-        if len(results['alice_sifted']) > 0:
-            final_key = privacy_amplification(results['alice_sifted'])
+        if len(corrected_bits) > 0:
+            final_key = privacy_amplification(corrected_bits)
             self.final_key_display.delete("1.0", "end")
             self.final_key_display.insert("end", final_key)
-        else:
-            self.final_key_display.delete("1.0", "end")
-            self.final_key_display.insert("end", "Error: No sifted key generated.")
-
+        
         # Update Chart
         self.ax.clear()
-        labels = ['Total Bits', 'Sifted Key', 'Errors']
-        values = [n_bits, len(results['alice_sifted']), int(results['qber'] * len(results['sifted_indices']))]
-        self.ax.bar(labels, values, color=['#3a7ebf', '#1f538d', '#e74c3c'])
-        self.ax.set_title(f"{selected_protocol} Summary", color='white')
+        labels = ['Sifted', 'Corrected', 'Errors']
+        values = [len(results['alice_sifted']), len(corrected_bits), final_errors]
+        self.ax.bar(labels, values, color=['#3a7ebf', '#2ecc71', '#e74c3c'])
+        self.ax.set_title(f"{selected_protocol} Performance Analysis", color='white')
         self.canvas.draw()
+
+    def export_data(self):
+        if self.last_results:
+            filename = export_results_to_file(self.last_results)
+            ctk.CTkMessagebox(title="Success", message=f"Results exported to {filename}", icon="check")
+        else:
+            print("Run simulation first!")
 
 if __name__ == "__main__":
     app = App()

@@ -3,3 +3,6 @@ matplotlib
 customtkinter
 darkdetect
 pyinstaller
+pandas
+openpyxl
+scipy

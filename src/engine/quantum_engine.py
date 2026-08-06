@@ -33,14 +33,30 @@ class QuantumState:
         Note: For simplicity in our single-qubit engine, we'll return a pair of states
         that are correlated when measured in the same basis.
         """
-        # In a real simulator, this would be a 4x1 vector. 
-        # Here we simulate the effect for QKD.
         return None 
 
+    def get_bloch_coordinates(self):
+        """Returns (x, y, z) coordinates for Bloch sphere visualization."""
+        a = self.state[0]
+        b = self.state[1]
+        x = 2 * np.real(np.conj(a) * b)
+        y = 2 * np.imag(np.conj(a) * b)
+        z = np.abs(a)**2 - np.abs(b)**2
+        return x, y, z
+
 class QuantumChannel:
-    """Simulates a quantum channel with noise."""
-    def __init__(self, qber=0.0):
-        self.qber = qber
+    """Simulates a quantum channel with noise and distance modeling."""
+    def __init__(self, qber=0.0, distance=0.0, attenuation_coeff=0.2):
+        """
+        distance: distance in km
+        attenuation_coeff: loss in dB/km (default 0.2 for fiber)
+        """
+        self.distance = distance
+        self.attenuation_coeff = attenuation_coeff
+        
+        # Calculate additional QBER due to distance
+        distance_noise = 0.5 * (1 - np.exp(-distance / 100)) 
+        self.qber = min(0.5, qber + distance_noise)
 
     def transmit(self, state):
         if np.random.random() < self.qber:
@@ -51,11 +67,8 @@ class QuantumChannel:
 def measure(state, basis='Z'):
     """Measures a qubit in the specified basis ('Z' or 'X')."""
     if basis == 'Z':
-        # Computational basis: |0>, |1>
         probs = np.abs(state.state)**2
     elif basis == 'X':
-        # Hadamard basis: |+>, |->
-        # Transformation matrix H = 1/sqrt(2) * [[1, 1], [1, -1]]
         h = 1/np.sqrt(2) * np.array([[1, 1], [1, -1]])
         x_state = h @ state.state
         probs = np.abs(x_state)**2
