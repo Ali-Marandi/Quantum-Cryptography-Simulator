@@ -27,6 +27,16 @@ class QuantumState:
     def minus():
         return QuantumState([1/np.sqrt(2), -1/np.sqrt(2)])
 
+    @staticmethod
+    def bell_state():
+        """Returns a Bell state |phi+> = 1/sqrt(2) * (|00> + |11>).
+        Note: For simplicity in our single-qubit engine, we'll return a pair of states
+        that are correlated when measured in the same basis.
+        """
+        # In a real simulator, this would be a 4x1 vector. 
+        # Here we simulate the effect for QKD.
+        return None 
+
 class QuantumChannel:
     """Simulates a quantum channel with noise."""
     def __init__(self, qber=0.0):

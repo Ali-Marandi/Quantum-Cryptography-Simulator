@@ -2,7 +2,7 @@ import customtkinter as ctk
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import numpy as np
-from ..engine.protocols import BB84Protocol
+from ..engine.protocols import BB84Protocol, B92Protocol, E91Protocol
 from ..engine.post_processing import privacy_amplification
 
 ctk.set_appearance_mode("Dark")
@@ -30,7 +30,7 @@ class App(ctk.CTk):
         # Protocol Selection
         self.protocol_label = ctk.CTkLabel(self.sidebar, text="Protocol:")
         self.protocol_label.grid(row=1, column=0, padx=20, pady=(10, 0))
-        self.protocol_menu = ctk.CTkOptionMenu(self.sidebar, values=["BB84", "B92 (Soon)", "E91 (Soon)"])
+        self.protocol_menu = ctk.CTkOptionMenu(self.sidebar, values=["BB84", "B92", "E91"])
         self.protocol_menu.grid(row=2, column=0, padx=20, pady=(0, 10))
 
         # Parameters
@@ -123,25 +123,36 @@ class App(ctk.CTk):
         qber = self.noise_slider.get()
         eve_present = self.eve_switch.get()
         eve_rate = self.eve_rate_slider.get()
+        selected_protocol = self.protocol_menu.get()
 
-        protocol = BB84Protocol(n_bits=n_bits, qber=qber, eve_present=eve_present, eve_interception_rate=eve_rate)
+        if selected_protocol == "BB84":
+            protocol = BB84Protocol(n_bits=n_bits, qber=qber, eve_present=eve_present, eve_interception_rate=eve_rate)
+            threshold = 0.11 + qber
+        elif selected_protocol == "B92":
+            protocol = B92Protocol(n_bits=n_bits, qber=qber, eve_present=eve_present, eve_interception_rate=eve_rate)
+            threshold = 0.05 + qber # B92 is more sensitive
+        elif selected_protocol == "E91":
+            protocol = E91Protocol(n_bits=n_bits, qber=qber, eve_present=eve_present, eve_interception_rate=eve_rate)
+            threshold = 0.15 + qber # E91 uses Bell inequality
+        
         results = protocol.run()
 
         # Update Stats
         self.qber_stat.configure(text=f"{results['qber']*100:.1f}%")
         self.key_len_stat.configure(text=str(len(results['alice_sifted'])))
         
-        # Eve detection logic: if QBER > threshold (e.g. 11% for BB84)
-        threshold = 0.11 + qber
+        # Eve detection logic
         eve_detected = results['qber'] > threshold
         self.eve_detect_stat.configure(text="YES" if eve_detected else "No", text_color="red" if eve_detected else "white")
 
         # Update Log
         self.log_text.delete("1.0", "end")
-        self.log_text.insert("end", f"--- BB84 Protocol Simulation ---\n")
+        self.log_text.insert("end", f"--- {selected_protocol} Protocol Simulation ---\n")
         self.log_text.insert("end", f"Alice's bits: {results['alice_bits'][:50]}...\n")
-        self.log_text.insert("end", f"Alice's bases: {results['alice_bases'][:50]}...\n")
-        self.log_text.insert("end", f"Bob's bases: {results['bob_bases'][:50]}...\n")
+        if "alice_bases" in results:
+            self.log_text.insert("end", f"Alice's bases: {results['alice_bases'][:50]}...\n")
+        if "bob_bases" in results:
+            self.log_text.insert("end", f"Bob's bases: {results['bob_bases'][:50]}...\n")
         self.log_text.insert("end", f"Sifted key length: {len(results['alice_sifted'])}\n")
         if eve_present:
             self.log_text.insert("end", f"Eve intercepted {results['eve_info']['interceptions']} qubits.\n")
@@ -157,10 +168,10 @@ class App(ctk.CTk):
 
         # Update Chart
         self.ax.clear()
-        labels = ['Alice Bits', 'Sifted Key', 'Errors']
+        labels = ['Total Bits', 'Sifted Key', 'Errors']
         values = [n_bits, len(results['alice_sifted']), int(results['qber'] * len(results['sifted_indices']))]
         self.ax.bar(labels, values, color=['#3a7ebf', '#1f538d', '#e74c3c'])
-        self.ax.set_title("Key Distribution Summary", color='white')
+        self.ax.set_title(f"{selected_protocol} Summary", color='white')
         self.canvas.draw()
 
 if __name__ == "__main__":
