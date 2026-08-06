@@ -153,6 +153,9 @@ class App(ctk.CTk):
         self.final_key_display = ctk.CTkTextbox(self.security_frame, height=100)
         self.final_key_display.pack(padx=20, pady=10, fill="x")
 
+        self.etsi_btn = ctk.CTkButton(self.security_frame, text="Generate ETSI GS QKD 014 Report", command=self.generate_etsi)
+        self.etsi_btn.pack(pady=20)
+
         # Main Chart
         self.fig, self.ax = plt.subplots(figsize=(5, 3), dpi=100)
         self.fig.patch.set_facecolor('#2b2b2b')
@@ -313,7 +316,21 @@ class App(ctk.CTk):
     def export_data(self):
         if self.last_results:
             filename = export_results_to_file(self.last_results)
-            ctk.CTkMessagebox(title="Success", message=f"Results exported to {filename}", icon="check")
+            # Use simple print as CTKMessagebox might not be available in all envs
+            print(f"Results exported to {filename}")
+        else:
+            print("Run simulation first!")
+
+    def generate_etsi(self):
+        if self.last_results:
+            from ..engine.sdk import QCryptoSDK
+            sdk = QCryptoSDK()
+            report = sdk.generate_etsi_report(self.last_results)
+            self.log_text.delete("1.0", "end")
+            self.log_text.insert("end", "--- ETSI GS QKD 014 COMPLIANT REPORT ---\n")
+            for k, v in report.items():
+                self.log_text.insert("end", f"{k.upper()}: {v}\n")
+            self.tabview.set("Detailed Log")
         else:
             print("Run simulation first!")
 
