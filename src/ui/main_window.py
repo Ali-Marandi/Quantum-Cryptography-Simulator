@@ -82,12 +82,19 @@ class App(ctk.CTk):
         self.attack_menu = ctk.CTkOptionMenu(self.sidebar, values=["None", "PNS Attack", "Detector Blinding"])
         self.attack_menu.grid(row=17, column=0, padx=20, pady=(0, 10))
 
+        # UX / EdTech
+        self.ux_label = ctk.CTkLabel(self.sidebar, text="Learning Mode:")
+        self.ux_label.grid(row=18, column=0, padx=20, pady=(10, 0))
+        self.tutorial_switch = ctk.CTkSwitch(self.sidebar, text="Interactive Tutorial", command=self.toggle_tutorial)
+        self.tutorial_switch.grid(row=19, column=0, padx=20, pady=10)
+
         # Main Content
         self.tabview = ctk.CTkTabview(self)
         self.tabview.grid(row=0, column=1, padx=(20, 20), pady=(20, 20), sticky="nsew")
         self.tabview.add("Dashboard")
         self.tabview.add("Network Topology")
         self.tabview.add("Bloch Sphere")
+        self.tabview.add("Interactive Lab")
         self.tabview.add("Detailed Log")
         self.tabview.add("Security Analysis")
 
@@ -141,6 +148,20 @@ class App(ctk.CTk):
         self.network.add_node("Alice")
         self.network.add_node("Bob")
         self.draw_network()
+
+        # Interactive Lab Tab
+        self.lab_frame = self.tabview.tab("Interactive Lab")
+        self.lab_label = ctk.CTkLabel(self.lab_frame, text="Welcome to the Quantum Lab! Enable Tutorial to start.", font=ctk.CTkFont(size=16))
+        self.lab_label.pack(pady=20)
+        
+        self.lab_progress = ctk.CTkProgressBar(self.lab_frame, width=400)
+        self.lab_progress.pack(pady=20)
+        self.lab_progress.set(0)
+        
+        self.lab_step_btn = ctk.CTkButton(self.lab_frame, text="Next Step", command=self.next_lab_step, state="disabled")
+        self.lab_step_btn.pack(pady=10)
+        
+        self.lab_step = 0
 
         # Detailed Log Tab
         self.log_text = ctk.CTkTextbox(self.tabview.tab("Detailed Log"), width=800, height=500)
@@ -333,6 +354,30 @@ class App(ctk.CTk):
             self.tabview.set("Detailed Log")
         else:
             print("Run simulation first!")
+
+    def next_lab_step(self):
+        steps = [
+            "Step 1: Alice is generating random bits and choosing bases...",
+            "Step 2: Qubits are being transmitted through the quantum channel...",
+            "Step 3: Bob is measuring the received qubits...",
+            "Step 4: Alice and Bob are comparing bases (Sifting)...",
+            "Step 5: Error correction and Privacy Amplification complete!"
+        ]
+        if self.lab_step < len(steps):
+            self.lab_label.configure(text=steps[self.lab_step])
+            self.lab_progress.set((self.lab_step + 1) / len(steps))
+            self.lab_step += 1
+        else:
+            self.lab_label.configure(text="Experiment Complete! Check Dashboard for results.")
+            self.run_simulation()
+            self.lab_step = 0
+
+    def toggle_tutorial(self):
+        if self.tutorial_switch.get():
+            self.lab_step_btn.configure(state="normal")
+            self.tabview.set("Interactive Lab")
+        else:
+            self.lab_step_btn.configure(state="disabled")
 
 if __name__ == "__main__":
     app = App()
