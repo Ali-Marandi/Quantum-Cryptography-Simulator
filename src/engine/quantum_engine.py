@@ -46,23 +46,54 @@ class QuantumState:
 
 class QuantumChannel:
     """Simulates a quantum channel with noise and distance modeling."""
-    def __init__(self, qber=0.0, distance=0.0, attenuation_coeff=0.2):
-        """
-        distance: distance in km
-        attenuation_coeff: loss in dB/km (default 0.2 for fiber)
-        """
+    def __init__(self, source_node, target_node, qber=0.0, distance=0.0, attenuation_coeff=0.2):
+        self.source = source_node
+        self.target = target_node
         self.distance = distance
         self.attenuation_coeff = attenuation_coeff
-        
-        # Calculate additional QBER due to distance
         distance_noise = 0.5 * (1 - np.exp(-distance / 100)) 
         self.qber = min(0.5, qber + distance_noise)
 
     def transmit(self, state):
         if np.random.random() < self.qber:
-            # Apply bit flip noise
             return QuantumState([state.state[1], state.state[0]])
         return state
+
+class QuantumNode:
+    """Represents a node in a quantum network."""
+    def __init__(self, name, node_type="EndNode"):
+        self.name = name
+        self.node_type = node_type # EndNode or Repeater
+        self.keys = {} # Store keys shared with other nodes
+
+class QuantumNetwork:
+    """Manages a collection of nodes and channels."""
+    def __init__(self):
+        self.nodes = {}
+        self.channels = []
+
+    def add_node(self, name, node_type="EndNode"):
+        node = QuantumNode(name, node_type)
+        self.nodes[name] = node
+        return node
+
+    def add_channel(self, source_name, target_name, distance=10.0, qber=0.01):
+        if source_name in self.nodes and target_name in self.nodes:
+            channel = QuantumChannel(self.nodes[source_name], self.nodes[target_name], qber, distance)
+            self.channels.append(channel)
+            return channel
+        return None
+
+    def get_path(self, start_node, end_node):
+        """Simple pathfinding for the network (BFS)."""
+        # For now, we return a simple list of channels if they exist
+        # In a real commercial app, this would be a full Dijkstra
+        path = []
+        for ch in self.channels:
+            if ch.source.name == start_node and ch.target.name == end_node:
+                path.append(ch)
+                return path
+        return None
 
 def measure(state, basis='Z'):
     """Measures a qubit in the specified basis ('Z' or 'X')."""

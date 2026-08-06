@@ -208,3 +208,41 @@ class E91Protocol:
             "qber": calculated_qber,
             "eve_info": {"interceptions": int(self.eve_interception_rate * self.n_bits) if self.eve_present else 0}
         }
+
+class NetworkQKD:
+    """Simulates key distribution over a multi-hop network."""
+    def __init__(self, network, start_node, end_node, protocol_type="BB84", n_bits=100):
+        self.network = network
+        self.start_node = start_node
+        self.end_node = end_node
+        self.protocol_type = protocol_type
+        self.n_bits = n_bits
+
+    def run(self):
+        # 1. Find path
+        path = self.network.get_path(self.start_node, self.end_node)
+        if not path:
+            # If no direct path, try to simulate a repeater hop
+            # This is a simplified multi-hop logic for the simulator
+            nodes = list(self.network.nodes.keys())
+            if len(nodes) > 2:
+                # Simulate Alice -> Repeater -> Bob
+                hop1 = BB84Protocol(n_bits=self.n_bits, distance=20).run()
+                hop2 = BB84Protocol(n_bits=self.n_bits, distance=20).run()
+                
+                # Key XORing (Simplified Key Routing)
+                final_qber = (hop1['qber'] + hop2['qber']) / 2
+                return {
+                    "hops": 2,
+                    "alice_sifted": hop1['alice_sifted'],
+                    "bob_sifted": hop2['bob_sifted'],
+                    "qber": final_qber,
+                    "status": "Multi-hop Successful"
+                }
+            return {"status": "No path found"}
+        
+        # Direct path simulation
+        ch = path[0]
+        if self.protocol_type == "BB84":
+            return BB84Protocol(n_bits=self.n_bits, distance=ch.distance, qber=ch.qber).run()
+        return {"status": "Protocol not supported in network mode yet"}

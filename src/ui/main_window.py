@@ -4,9 +4,9 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 import os
-from ..engine.protocols import BB84Protocol, B92Protocol, E91Protocol
+from ..engine.protocols import BB84Protocol, B92Protocol, E91Protocol, NetworkQKD
 from ..engine.post_processing import privacy_amplification, cascade_error_correction, export_results_to_file
-from ..engine.quantum_engine import QuantumState
+from ..engine.quantum_engine import QuantumState, QuantumNetwork
 
 ctk.set_appearance_mode("Dark")
 ctk.set_default_color_theme("blue")
@@ -74,6 +74,7 @@ class App(ctk.CTk):
         self.tabview = ctk.CTkTabview(self)
         self.tabview.grid(row=0, column=1, padx=(20, 20), pady=(20, 20), sticky="nsew")
         self.tabview.add("Dashboard")
+        self.tabview.add("Network Topology")
         self.tabview.add("Bloch Sphere")
         self.tabview.add("Detailed Log")
         self.tabview.add("Security Analysis")
@@ -102,6 +103,31 @@ class App(ctk.CTk):
         self.canvas_bloch = FigureCanvasTkAgg(self.fig_bloch, master=self.bloch_frame)
         self.canvas_bloch.get_tk_widget().pack(fill="both", expand=True)
         self.draw_empty_bloch()
+
+        # Network Topology Tab
+        self.network_frame = self.tabview.tab("Network Topology")
+        self.network_frame.grid_columnconfigure(0, weight=1)
+        self.network_frame.grid_rowconfigure(1, weight=1)
+        
+        self.net_ctrl_frame = ctk.CTkFrame(self.network_frame)
+        self.net_ctrl_frame.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
+        
+        self.add_node_btn = ctk.CTkButton(self.net_ctrl_frame, text="Add Repeater Node", command=self.add_repeater)
+        self.add_node_btn.pack(side="left", padx=10, pady=10)
+        
+        self.net_info_label = ctk.CTkLabel(self.net_ctrl_frame, text="Current Nodes: Alice, Bob")
+        self.net_info_label.pack(side="left", padx=20)
+
+        self.fig_net, self.ax_net = plt.subplots(figsize=(6, 4), dpi=100)
+        self.fig_net.patch.set_facecolor('#2b2b2b')
+        self.ax_net.set_facecolor('#2b2b2b')
+        self.canvas_net = FigureCanvasTkAgg(self.fig_net, master=self.network_frame)
+        self.canvas_net.get_tk_widget().grid(row=1, column=0, padx=10, pady=10, sticky="nsew")
+        
+        self.network = QuantumNetwork()
+        self.network.add_node("Alice")
+        self.network.add_node("Bob")
+        self.draw_network()
 
         # Detailed Log Tab
         self.log_text = ctk.CTkTextbox(self.tabview.tab("Detailed Log"), width=800, height=500)
@@ -145,6 +171,30 @@ class App(ctk.CTk):
     def update_eve_label(self, value):
         self.eve_rate_label.configure(text=f"Eve Interception: {int(value*100)}%")
 
+    def add_repeater(self):
+        name = f"Repeater_{len(self.network.nodes)-1}"
+        self.network.add_node(name, node_type="Repeater")
+        self.net_info_label.configure(text=f"Current Nodes: {', '.join(self.network.nodes.keys())}")
+        self.draw_network()
+
+    def draw_network(self):
+        self.ax_net.clear()
+        names = list(self.network.nodes.keys())
+        x = np.linspace(0, 10, len(names))
+        y = np.zeros(len(names))
+        
+        for i, name in enumerate(names):
+            color = 'blue' if name in ['Alice', 'Bob'] else 'orange'
+            self.ax_net.scatter(x[i], y[i], s=500, c=color, zorder=5)
+            self.ax_net.text(x[i], y[i]+0.2, name, color='white', ha='center', fontweight='bold')
+            
+        if len(x) > 1:
+            self.ax_net.plot(x, y, color='white', linestyle='--', alpha=0.5, zorder=1)
+            
+        self.ax_net.set_ylim(-1, 1)
+        self.ax_net.set_axis_off()
+        self.canvas_net.draw()
+
     def draw_empty_bloch(self):
         self.ax_bloch.clear()
         self.ax_bloch.set_facecolor('#2b2b2b')
@@ -167,17 +217,24 @@ class App(ctk.CTk):
         eve_rate = self.eve_rate_slider.get()
         selected_protocol = self.protocol_menu.get()
 
-        if selected_protocol == "BB84":
-            protocol = BB84Protocol(n_bits=n_bits, qber=qber, distance=distance, eve_present=eve_present, eve_interception_rate=eve_rate)
-            threshold = 0.11 + (protocol.channel.qber - qber)
-        elif selected_protocol == "B92":
-            protocol = B92Protocol(n_bits=n_bits, qber=qber, distance=distance, eve_present=eve_present, eve_interception_rate=eve_rate)
-            threshold = 0.05 + (protocol.channel.qber - qber)
+        if len(self.network.nodes) > 2:
+            # Network Mode
+            net_protocol = NetworkQKD(self.network, "Alice", "Bob", protocol_type=selected_protocol, n_bits=n_bits)
+            results = net_protocol.run()
+            threshold = 0.20 # Higher threshold for multi-hop
         else:
-            protocol = E91Protocol(n_bits=n_bits, qber=qber, distance=distance, eve_present=eve_present, eve_interception_rate=eve_rate)
-            threshold = 0.15 + (protocol.channel.qber - qber)
-        
-        results = protocol.run()
+            # Direct Mode
+            if selected_protocol == "BB84":
+                protocol = BB84Protocol(n_bits=n_bits, qber=qber, distance=distance, eve_present=eve_present, eve_interception_rate=eve_rate)
+                threshold = 0.11 + (protocol.channel.qber - qber)
+            elif selected_protocol == "B92":
+                protocol = B92Protocol(n_bits=n_bits, qber=qber, distance=distance, eve_present=eve_present, eve_interception_rate=eve_rate)
+                threshold = 0.05 + (protocol.channel.qber - qber)
+            else:
+                protocol = E91Protocol(n_bits=n_bits, qber=qber, distance=distance, eve_present=eve_present, eve_interception_rate=eve_rate)
+                threshold = 0.15 + (protocol.channel.qber - qber)
+            
+            results = protocol.run()
         
         # Error Correction
         corrected_bits, final_errors = cascade_error_correction(results['alice_sifted'], results['bob_sifted'])
