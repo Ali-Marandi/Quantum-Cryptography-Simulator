@@ -64,15 +64,36 @@ class Detector:
         self.efficiency = efficiency
         self.dark_count_rate = dark_count_rate
         self.dead_time = dead_time
+        self.is_blinded = False
 
     def detect(self, state):
+        if self.is_blinded:
+            return None
         # Efficiency check
         if np.random.random() > self.efficiency:
             return None
         # Dark count check
         if np.random.random() < self.dark_count_rate:
             return np.random.randint(0, 2)
-        return None # Placeholder for real detection logic
+        return None 
+
+class AttackSuite:
+    """Collection of advanced quantum attacks."""
+    @staticmethod
+    def pns_attack(photons):
+        """Photon Number Splitting attack."""
+        if photons and len(photons) > 1:
+            # Eve takes one photon and lets the rest go
+            eve_photon = photons[0]
+            remaining_photons = photons[1:]
+            return eve_photon, remaining_photons
+        return None, photons
+
+    @staticmethod
+    def detector_blinding(detector):
+        """Blinds the detector using high-power pulses."""
+        detector.is_blinded = True
+        return True
 
 class QuantumChannel:
     """Simulates a quantum channel with noise and distance modeling."""

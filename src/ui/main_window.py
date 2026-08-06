@@ -76,6 +76,12 @@ class App(ctk.CTk):
         self.hw_menu = ctk.CTkOptionMenu(self.sidebar, values=["Standard", "ID Quantique Clavis3", "Toshiba QKD"])
         self.hw_menu.grid(row=15, column=0, padx=20, pady=(0, 10))
 
+        # Attack Suite
+        self.attack_label = ctk.CTkLabel(self.sidebar, text="Active Attack:")
+        self.attack_label.grid(row=16, column=0, padx=20, pady=(10, 0))
+        self.attack_menu = ctk.CTkOptionMenu(self.sidebar, values=["None", "PNS Attack", "Detector Blinding"])
+        self.attack_menu.grid(row=17, column=0, padx=20, pady=(0, 10))
+
         # Main Content
         self.tabview = ctk.CTkTabview(self)
         self.tabview.grid(row=0, column=1, padx=(20, 20), pady=(20, 20), sticky="nsew")
@@ -95,7 +101,8 @@ class App(ctk.CTk):
         self.qber_stat = self.create_stat_widget(self.stat_frame, "Total QBER", "0%", 0)
         self.key_len_stat = self.create_stat_widget(self.stat_frame, "Sifted Key", "0", 1)
         self.corrected_stat = self.create_stat_widget(self.stat_frame, "Corrected Key", "0", 2)
-        self.eve_detect_stat = self.create_stat_widget(self.stat_frame, "Eve Detected", "No", 3)
+        self.sec_score_stat = self.create_stat_widget(self.stat_frame, "Security Score", "100%", 3)
+        self.eve_detect_stat = self.create_stat_widget(self.stat_frame, "Eve Detected", "No", 4)
 
         self.chart_frame = ctk.CTkFrame(self.dashboard_frame)
         self.chart_frame.grid(row=1, column=0, columnspan=3, padx=10, pady=10, sticky="nsew")
@@ -222,6 +229,8 @@ class App(ctk.CTk):
         eve_present = self.eve_switch.get()
         eve_rate = self.eve_rate_slider.get()
         selected_protocol = self.protocol_menu.get()
+        attack_type = self.attack_menu.get().replace(" Attack", "").replace(" ", "")
+        if attack_type == "None": attack_type = None
 
         hw_profile = self.hw_menu.get()
         source_type = "WCP" if hw_profile != "Standard" else "SinglePhoton"
@@ -245,7 +254,7 @@ class App(ctk.CTk):
                 protocol = E91Protocol(n_bits=n_bits, qber=qber, distance=distance, eve_present=eve_present, eve_interception_rate=eve_rate)
                 threshold = 0.15 + (protocol.channel.qber - qber)
             
-            results = protocol.run()
+            results = protocol.run(attack_type=attack_type)
         
         # Error Correction
         corrected_bits, final_errors = cascade_error_correction(results['alice_sifted'], results['bob_sifted'])
@@ -254,12 +263,20 @@ class App(ctk.CTk):
         
         self.last_results = results
 
+        # Security Score Calculation
+        sec_score = 100
+        if results['qber'] > 0: sec_score -= (results['qber'] * 200)
+        if attack_type == "PNS" and results['eve_info'].get('pns_leaks', 0) > 0: sec_score -= 40
+        if attack_type == "DetectorBlinding": sec_score -= 60
+        sec_score = max(0, min(100, sec_score))
+
         # Update Stats
         self.qber_stat.configure(text=f"{results['qber']*100:.1f}%")
         self.key_len_stat.configure(text=str(len(results['alice_sifted'])))
         self.corrected_stat.configure(text=str(len(corrected_bits)))
+        self.sec_score_stat.configure(text=f"{int(sec_score)}%", text_color="green" if sec_score > 70 else ("orange" if sec_score > 30 else "red"))
         
-        eve_detected = results['qber'] > threshold
+        eve_detected = results['qber'] > threshold or (attack_type is not None and sec_score < 50)
         self.eve_detect_stat.configure(text="YES" if eve_detected else "No", text_color="red" if eve_detected else "white")
 
         # Update Log

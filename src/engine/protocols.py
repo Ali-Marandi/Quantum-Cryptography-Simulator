@@ -13,30 +13,45 @@ class BB84Protocol:
         self.source = PhotonSource(source_type=source_type)
         self.detector = Detector(efficiency=detector_efficiency)
 
-    def run(self):
+    def run(self, attack_type=None):
         # 1. Alice prepares qubits
         alice_bits = np.random.randint(0, 2, self.n_bits)
         alice_bases = np.random.choice(['Z', 'X'], self.n_bits)
         
-        transmitted_qubits = []
+        transmitted_photon_packets = []
         for bit, basis in zip(alice_bits, alice_bases):
             state = QuantumState.zero() if bit == 0 else QuantumState.one()
             if basis == 'X':
                 state = QuantumState.plus() if bit == 0 else QuantumState.minus()
             
             photons = self.source.emit(state)
-            transmitted_qubits.append(photons[0] if photons else None)
+            transmitted_photon_packets.append(photons)
 
-        # 2. Transmission
+        # 2. Transmission (with possible Eve attacks)
         received_qubits = []
-        eve_info = {"interceptions": 0}
-        for q in transmitted_qubits:
-            if q is None:
+        eve_info = {"interceptions": 0, "pns_leaks": 0}
+        
+        if attack_type == "DetectorBlinding":
+            self.detector.is_blinded = True
+
+        for photons in transmitted_photon_packets:
+            if not photons:
                 received_qubits.append(None)
                 continue
-            if self.eve_present and np.random.random() < self.eve_interception_rate:
-                measure(q, basis=np.random.choice(['Z', 'X']))
-                eve_info["interceptions"] += 1
+                
+            q = photons[0]
+            
+            if self.eve_present:
+                if attack_type == "PNS" and len(photons) > 1:
+                    # Eve performs PNS attack
+                    eve_q = photons[0]
+                    q = photons[1]
+                    eve_info["pns_leaks"] += 1
+                    # Eve stores her qubit and waits for basis announcement
+                elif np.random.random() < self.eve_interception_rate:
+                    measure(q, basis=np.random.choice(['Z', 'X']))
+                    eve_info["interceptions"] += 1
+            
             received_qubits.append(self.channel.transmit(q))
 
         # 3. Bob measures
