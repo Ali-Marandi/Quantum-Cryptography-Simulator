@@ -8,6 +8,7 @@ from ..engine.protocols import BB84Protocol, B92Protocol, E91Protocol, NetworkQK
 from ..engine.post_processing import privacy_amplification, cascade_error_correction, export_results_to_file
 from ..engine.quantum_engine import QuantumState, QuantumNetwork
 from ..engine.ai_security import AISecurity
+from ..engine.database import QCryptoDB
 
 ctk.set_appearance_mode("Dark")
 ctk.set_default_color_theme("blue")
@@ -104,6 +105,7 @@ class App(ctk.CTk):
         self.tabview.add("Interactive Lab")
         self.tabview.add("AI Security")
         self.tabview.add("Quantum Messenger")
+        self.tabview.add("Simulation History")
         self.tabview.add("Detailed Log")
         self.tabview.add("Security Analysis")
 
@@ -159,6 +161,7 @@ class App(ctk.CTk):
         self.draw_network()
         
         self.ai_engine = AISecurity()
+        self.db = QCryptoDB()
 
         # Interactive Lab Tab
         self.lab_frame = self.tabview.tab("Interactive Lab")
@@ -209,6 +212,17 @@ class App(ctk.CTk):
         self.send_btn.pack(side="right", padx=10, pady=10)
         
         self.current_key = None
+
+        # Simulation History Tab
+        self.history_frame = self.tabview.tab("Simulation History")
+        self.history_frame.grid_columnconfigure(0, weight=1)
+        self.history_frame.grid_rowconfigure(0, weight=1)
+        
+        self.history_display = ctk.CTkTextbox(self.history_frame, width=800, height=500)
+        self.history_display.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
+        
+        self.refresh_history_btn = ctk.CTkButton(self.history_frame, text="Refresh History", command=self.refresh_history)
+        self.refresh_history_btn.grid(row=1, column=0, padx=10, pady=10)
 
         # Detailed Log Tab
         self.log_text = ctk.CTkTextbox(self.tabview.tab("Detailed Log"), width=800, height=500)
@@ -370,6 +384,9 @@ class App(ctk.CTk):
 
         eve_detected = results['qber'] > threshold or ai_anomaly or (attack_type is not None and sec_score < 50)
         self.eve_detect_stat.configure(text="YES" if eve_detected else "No", text_color="red" if eve_detected else "white")
+        
+        # Save to Database
+        self.db.save_simulation(selected_protocol, results['qber'], len(corrected_bits), int(sec_score), eve_detected)
 
         # Update Log
         self.log_text.delete("1.0", "end")
@@ -463,6 +480,15 @@ class App(ctk.CTk):
         self.chat_display.insert("end", f"Bob (Decrypted): {decrypted}\n\n")
         self.chat_entry.delete(0, "end")
         self.chat_display.see("end")
+
+    def refresh_history(self):
+        history = self.db.get_history()
+        self.history_display.delete("1.0", "end")
+        self.history_display.insert("end", f"{'Date':<20} | {'Proto':<6} | {'QBER':<6} | {'Key':<4} | {'Score':<5} | {'Eve'}\n")
+        self.history_display.insert("end", "-"*65 + "\n")
+        for row in history:
+            ts, proto, qber, klen, score, eve = row[1], row[2], row[3], row[4], row[5], row[6]
+            self.history_display.insert("end", f"{ts[:19]:<20} | {proto:<6} | {qber*100:>5.1f}% | {klen:>4} | {score:>4}% | {'YES' if eve else 'No'}\n")
 
 if __name__ == "__main__":
     app = App()
