@@ -3,7 +3,14 @@
 ## Overview
 This is a comprehensive, commercial-grade Quantum Cryptography Simulation and Experimentation Platform. It is designed for researchers, educators, and cybersecurity professionals to simulate advanced QKD protocols in realistic network environments.
 
-## Enterprise Features
+## Enterprise Features (v2.x Strategic Edition)
+
+### 0. Strategic v2.x Features
+- **Satellite QKD (v2.0.0)**: Modeling atmospheric loss and satellite-to-ground quantum links.
+- **AI Security (v2.1.0)**: ML-based eavesdropping detection using Anomaly Detection (Isolation Forest).
+- **Quantum Messenger (v2.2.0)**: Real-world secure chat application using quantum-generated keys.
+- **Simulation Database (v2.3.0)**: Local SQLite database for persistent simulation history and auditing.
+- **City-scale View (v2.4.0)**: Metropolitan-scale network visualization for infrastructure planning.
 
 ### 1. Advanced Protocol Suite
 - **BB84**: Standard 4-state protocol.

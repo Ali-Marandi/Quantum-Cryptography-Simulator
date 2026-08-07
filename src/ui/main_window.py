@@ -105,6 +105,7 @@ class App(ctk.CTk):
         self.tabview.add("Interactive Lab")
         self.tabview.add("AI Security")
         self.tabview.add("Quantum Messenger")
+        self.tabview.add("City Network View")
         self.tabview.add("Simulation History")
         self.tabview.add("Detailed Log")
         self.tabview.add("Security Analysis")
@@ -212,6 +213,19 @@ class App(ctk.CTk):
         self.send_btn.pack(side="right", padx=10, pady=10)
         
         self.current_key = None
+
+        # City Network View Tab
+        self.city_frame = self.tabview.tab("City Network View")
+        self.city_frame.grid_columnconfigure(0, weight=1)
+        self.city_frame.grid_rowconfigure(0, weight=1)
+        
+        self.fig_city, self.ax_city = plt.subplots(figsize=(6, 4), dpi=100)
+        self.fig_city.patch.set_facecolor('#1a1a1a')
+        self.ax_city.set_facecolor('#1a1a1a')
+        self.canvas_city = FigureCanvasTkAgg(self.fig_city, master=self.city_frame)
+        self.canvas_city.get_tk_widget().grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
+        
+        self.draw_city_network()
 
         # Simulation History Tab
         self.history_frame = self.tabview.tab("Simulation History")
@@ -489,6 +503,36 @@ class App(ctk.CTk):
         for row in history:
             ts, proto, qber, klen, score, eve = row[1], row[2], row[3], row[4], row[5], row[6]
             self.history_display.insert("end", f"{ts[:19]:<20} | {proto:<6} | {qber*100:>5.1f}% | {klen:>4} | {score:>4}% | {'YES' if eve else 'No'}\n")
+
+    def draw_city_network(self):
+        self.ax_city.clear()
+        # Draw a simulated city grid
+        for i in range(0, 10, 2):
+            self.ax_city.axhline(i, color='#333333', lw=1, zorder=1)
+            self.ax_city.axvline(i, color='#333333', lw=1, zorder=1)
+            
+        # Draw Nodes at specific "city locations"
+        locations = {
+            "Data Center (Alice)": (1, 8),
+            "Repeater 1": (5, 5),
+            "Repeater 2": (2, 3),
+            "Government Office (Bob)": (8, 2)
+        }
+        
+        for name, pos in locations.items():
+            color = '#3a7ebf' if "Alice" in name or "Bob" in name else '#f39c12'
+            self.ax_city.scatter(pos[0], pos[1], s=300, c=color, edgecolors='white', zorder=5)
+            self.ax_city.text(pos[0], pos[1]+0.3, name, color='white', ha='center', fontsize=8)
+            
+        # Draw Fiber Links
+        self.ax_city.plot([1, 5], [8, 5], color='#2ecc71', lw=2, alpha=0.6, zorder=2)
+        self.ax_city.plot([5, 8], [5, 2], color='#2ecc71', lw=2, alpha=0.6, zorder=2)
+        
+        self.ax_city.set_xlim(0, 10)
+        self.ax_city.set_ylim(0, 10)
+        self.ax_city.set_title("Metropolitan Quantum Key Distribution Network", color='white', pad=20)
+        self.ax_city.set_axis_off()
+        self.canvas_city.draw()
 
 if __name__ == "__main__":
     app = App()
