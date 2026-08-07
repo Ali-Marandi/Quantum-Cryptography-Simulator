@@ -115,8 +115,32 @@ class QuantumNode:
     """Represents a node in a quantum network."""
     def __init__(self, name, node_type="EndNode"):
         self.name = name
-        self.node_type = node_type # EndNode or Repeater
+        self.node_type = node_type # EndNode, Repeater, or Satellite
         self.keys = {} # Store keys shared with other nodes
+
+class FreeSpaceChannel:
+    """Simulates a free-space quantum channel (Satellite-to-Ground)."""
+    def __init__(self, altitude=500, weather="Clear", turbulence="Low"):
+        self.altitude = altitude # in km
+        self.weather = weather
+        self.turbulence = turbulence
+        
+        # Atmospheric loss modeling (Simplified)
+        weather_loss = {"Clear": 0.1, "Cloudy": 0.5, "Foggy": 0.9}
+        turbulence_noise = {"Low": 0.01, "Medium": 0.05, "High": 0.15}
+        
+        self.loss = weather_loss.get(weather, 0.1)
+        self.qber = turbulence_noise.get(turbulence, 0.01) + (altitude / 5000)
+
+    def transmit(self, state):
+        if state is None: return None
+        # Loss check
+        if np.random.random() < self.loss:
+            return None
+        # Noise check
+        if np.random.random() < self.qber:
+            return QuantumState([state.state[1], state.state[0]])
+        return state
 
 class QuantumNetwork:
     """Manages a collection of nodes and channels."""

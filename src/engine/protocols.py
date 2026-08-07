@@ -1,17 +1,23 @@
 import numpy as np
-from .quantum_engine import QuantumState, QuantumChannel, measure, PhotonSource, Detector
+from .quantum_engine import QuantumState, QuantumChannel, measure, PhotonSource, Detector, FreeSpaceChannel
 
 class BB84Protocol:
     def __init__(self, n_bits=100, qber=0.0, distance=0.0, eve_present=False, eve_interception_rate=0.0, 
-                 source_type="SinglePhoton", detector_efficiency=1.0):
+                 source_type="SinglePhoton", detector_efficiency=1.0, channel_type="Fiber", **kwargs):
         self.n_bits = n_bits
         self.qber = qber
         self.distance = distance
         self.eve_present = eve_present
         self.eve_interception_rate = eve_interception_rate
-        self.channel = QuantumChannel(None, None, qber=qber, distance=distance)
         self.source = PhotonSource(source_type=source_type)
         self.detector = Detector(efficiency=detector_efficiency)
+        
+        if channel_type == "Satellite":
+            self.channel = FreeSpaceChannel(altitude=kwargs.get('altitude', 500), 
+                                           weather=kwargs.get('weather', 'Clear'), 
+                                           turbulence=kwargs.get('turbulence', 'Low'))
+        else:
+            self.channel = QuantumChannel(None, None, qber=qber, distance=distance)
 
     def run(self, attack_type=None):
         # 1. Alice prepares qubits
@@ -43,11 +49,9 @@ class BB84Protocol:
             
             if self.eve_present:
                 if attack_type == "PNS" and len(photons) > 1:
-                    # Eve performs PNS attack
                     eve_q = photons[0]
                     q = photons[1]
                     eve_info["pns_leaks"] += 1
-                    # Eve stores her qubit and waits for basis announcement
                 elif np.random.random() < self.eve_interception_rate:
                     measure(q, basis=np.random.choice(['Z', 'X']))
                     eve_info["interceptions"] += 1
@@ -63,7 +67,7 @@ class BB84Protocol:
             else:
                 bob_bits.append(None)
 
-        # 4. Sifting (must handle None results)
+        # 4. Sifting
         sifted_indices = []
         alice_sifted = []
         bob_sifted = []
@@ -93,11 +97,7 @@ class BB84Protocol:
 
 class B92Protocol:
     def __init__(self, n_bits=100, qber=0.0, distance=0.0, eve_present=False, eve_interception_rate=0.0):
-        self.n_bits = n_bits
-        self.qber = qber
-        self.distance = distance
-        self.eve_present = eve_present
-        self.eve_interception_rate = eve_interception_rate
+        self.n_bits, self.qber, self.distance, self.eve_present, self.eve_interception_rate = n_bits, qber, distance, eve_present, eve_interception_rate
         self.channel = QuantumChannel(None, None, qber=qber, distance=distance)
 
     def run(self):
@@ -120,11 +120,7 @@ class B92Protocol:
 
 class E91Protocol:
     def __init__(self, n_bits=100, qber=0.0, distance=0.0, eve_present=False, eve_interception_rate=0.0):
-        self.n_bits = n_bits
-        self.qber = qber
-        self.distance = distance
-        self.eve_present = eve_present
-        self.eve_interception_rate = eve_interception_rate
+        self.n_bits, self.qber, self.distance, self.eve_present, self.eve_interception_rate = n_bits, qber, distance, eve_present, eve_interception_rate
 
     def run(self):
         alice_bases = np.random.choice(['Z', 'X', 'W'], self.n_bits)

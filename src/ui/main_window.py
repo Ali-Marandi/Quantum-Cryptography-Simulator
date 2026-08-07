@@ -88,6 +88,12 @@ class App(ctk.CTk):
         self.tutorial_switch = ctk.CTkSwitch(self.sidebar, text="Interactive Tutorial", command=self.toggle_tutorial)
         self.tutorial_switch.grid(row=19, column=0, padx=20, pady=10)
 
+        # Satellite Mode
+        self.sat_label = ctk.CTkLabel(self.sidebar, text="Channel Type:")
+        self.sat_label.grid(row=20, column=0, padx=20, pady=(10, 0))
+        self.channel_menu = ctk.CTkOptionMenu(self.sidebar, values=["Fiber", "Satellite"])
+        self.channel_menu.grid(row=21, column=0, padx=20, pady=(0, 10))
+
         # Main Content
         self.tabview = ctk.CTkTabview(self)
         self.tabview.grid(row=0, column=1, padx=(20, 20), pady=(20, 20), sticky="nsew")
@@ -260,6 +266,8 @@ class App(ctk.CTk):
         source_type = "WCP" if hw_profile != "Standard" else "SinglePhoton"
         efficiency = 0.25 if hw_profile == "ID Quantique Clavis3" else (0.35 if hw_profile == "Toshiba QKD" else 1.0)
 
+        channel_type = self.channel_menu.get()
+
         if len(self.network.nodes) > 2:
             # Network Mode
             net_protocol = NetworkQKD(self.network, "Alice", "Bob", protocol_type=selected_protocol, n_bits=n_bits)
@@ -269,8 +277,9 @@ class App(ctk.CTk):
             # Direct Mode
             if selected_protocol == "BB84":
                 protocol = BB84Protocol(n_bits=n_bits, qber=qber, distance=distance, eve_present=eve_present, 
-                                        eve_interception_rate=eve_rate, source_type=source_type, detector_efficiency=efficiency)
-                threshold = 0.11 + (protocol.channel.qber - qber)
+                                        eve_interception_rate=eve_rate, source_type=source_type, 
+                                        detector_efficiency=efficiency, channel_type=channel_type)
+                threshold = 0.11 + (protocol.qber if channel_type == "Fiber" else 0.05)
             elif selected_protocol == "B92":
                 protocol = B92Protocol(n_bits=n_bits, qber=qber, distance=distance, eve_present=eve_present, eve_interception_rate=eve_rate)
                 threshold = 0.05 + (protocol.channel.qber - qber)
