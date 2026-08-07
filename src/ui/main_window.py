@@ -7,6 +7,7 @@ import os
 from ..engine.protocols import BB84Protocol, B92Protocol, E91Protocol, NetworkQKD
 from ..engine.post_processing import privacy_amplification, cascade_error_correction, export_results_to_file
 from ..engine.quantum_engine import QuantumState, QuantumNetwork
+from ..engine.ai_security import AISecurity
 
 ctk.set_appearance_mode("Dark")
 ctk.set_default_color_theme("blue")
@@ -101,6 +102,7 @@ class App(ctk.CTk):
         self.tabview.add("Network Topology")
         self.tabview.add("Bloch Sphere")
         self.tabview.add("Interactive Lab")
+        self.tabview.add("AI Security")
         self.tabview.add("Detailed Log")
         self.tabview.add("Security Analysis")
 
@@ -154,6 +156,8 @@ class App(ctk.CTk):
         self.network.add_node("Alice")
         self.network.add_node("Bob")
         self.draw_network()
+        
+        self.ai_engine = AISecurity()
 
         # Interactive Lab Tab
         self.lab_frame = self.tabview.tab("Interactive Lab")
@@ -168,6 +172,23 @@ class App(ctk.CTk):
         self.lab_step_btn.pack(pady=10)
         
         self.lab_step = 0
+
+        # AI Security Tab
+        self.ai_frame = self.tabview.tab("AI Security")
+        self.ai_label = ctk.CTkLabel(self.ai_frame, text="AI Eavesdropping Detection System", font=ctk.CTkFont(size=18, weight="bold"))
+        self.ai_label.pack(pady=20)
+        
+        self.ai_status_box = ctk.CTkFrame(self.ai_frame, fg_color="#333333")
+        self.ai_status_box.pack(padx=20, pady=20, fill="x")
+        
+        self.ai_status_label = ctk.CTkLabel(self.ai_status_box, text="System Status: MONITORING", font=ctk.CTkFont(size=14))
+        self.ai_status_label.pack(pady=10)
+        
+        self.ai_result_label = ctk.CTkLabel(self.ai_status_box, text="Anomaly Detection: WAITING...", font=ctk.CTkFont(size=20, weight="bold"))
+        self.ai_result_label.pack(pady=20)
+        
+        self.ai_opt_label = ctk.CTkLabel(self.ai_frame, text="AI Optimization Suggestion: -")
+        self.ai_opt_label.pack(pady=10)
 
         # Detailed Log Tab
         self.log_text = ctk.CTkTextbox(self.tabview.tab("Detailed Log"), width=800, height=500)
@@ -309,7 +330,20 @@ class App(ctk.CTk):
         self.corrected_stat.configure(text=str(len(corrected_bits)))
         self.sec_score_stat.configure(text=f"{int(sec_score)}%", text_color="green" if sec_score > 70 else ("orange" if sec_score > 30 else "red"))
         
-        eve_detected = results['qber'] > threshold or (attack_type is not None and sec_score < 50)
+        # AI Detection
+        key_rate = len(results['alice_sifted']) / n_bits
+        variance = np.var(results['alice_sifted']) if results['alice_sifted'] else 0
+        ai_anomaly = self.ai_engine.detect_eavesdropping(results['qber'], key_rate, variance)
+        
+        self.ai_result_label.configure(
+            text="ANOMALY DETECTED!" if ai_anomaly else "NORMAL OPERATION",
+            text_color="red" if ai_anomaly else "green"
+        )
+        
+        opt_mu = self.ai_engine.optimize_parameters(distance)
+        self.ai_opt_label.configure(text=f"AI Optimization Suggestion: Set Mean Photon Number (mu) to {opt_mu}")
+
+        eve_detected = results['qber'] > threshold or ai_anomaly or (attack_type is not None and sec_score < 50)
         self.eve_detect_stat.configure(text="YES" if eve_detected else "No", text_color="red" if eve_detected else "white")
 
         # Update Log
