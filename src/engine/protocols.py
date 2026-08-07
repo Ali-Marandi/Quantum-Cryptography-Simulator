@@ -142,13 +142,37 @@ class E91Protocol:
 class NetworkQKD:
     def __init__(self, network, start_node, end_node, protocol_type="BB84", n_bits=100):
         self.network, self.start_node, self.end_node, self.protocol_type, self.n_bits = network, start_node, end_node, protocol_type, n_bits
+        
     def run(self):
         path = self.network.get_path(self.start_node, self.end_node)
         if not path:
-            if len(self.network.nodes) > 2:
-                hop1 = BB84Protocol(n_bits=self.n_bits, distance=20).run()
-                hop2 = BB84Protocol(n_bits=self.n_bits, distance=20).run()
-                return {"hops": 2, "alice_sifted": hop1['alice_sifted'], "bob_sifted": hop2['bob_sifted'], "qber": (hop1['qber'] + hop2['qber']) / 2, "status": "Multi-hop Successful"}
-            return {"status": "No path found"}
-        ch = path[0]
-        return BB84Protocol(n_bits=self.n_bits, distance=ch.distance, qber=ch.qber).run()
+            return {"status": "No secure path found in the 3D quantum network."}
+            
+        # Simulate multi-hop key distribution
+        total_qber = 0
+        all_alice_sifted = []
+        all_bob_sifted = []
+        
+        for ch in path:
+            # Each hop is a separate QKD session
+            hop_protocol = BB84Protocol(n_bits=self.n_bits, distance=ch.distance, qber=ch.qber)
+            hop_results = hop_protocol.run()
+            total_qber += hop_results['qber']
+            # In a real network, keys are XORed or routed. Here we simulate the final key length.
+            if not all_alice_sifted:
+                all_alice_sifted = hop_results['alice_sifted']
+                all_bob_sifted = hop_results['bob_sifted']
+            else:
+                # Key length might decrease due to routing overhead/security
+                min_len = min(len(all_alice_sifted), len(hop_results['alice_sifted']))
+                all_alice_sifted = all_alice_sifted[:min_len]
+                all_bob_sifted = all_bob_sifted[:min_len]
+
+        avg_qber = total_qber / len(path)
+        return {
+            "hops": len(path),
+            "alice_sifted": all_alice_sifted,
+            "bob_sifted": all_bob_sifted,
+            "qber": avg_qber,
+            "status": f"Secure Multi-hop Routing Successful ({len(path)} hops)"
+        }

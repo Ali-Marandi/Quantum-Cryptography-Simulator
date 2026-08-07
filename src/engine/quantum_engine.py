@@ -156,23 +156,67 @@ class QuantumNetwork:
         self.nodes[name] = node
         return node
 
-    def add_channel(self, source_name, target_name, distance=10.0, qber=0.01):
+    def add_channel(self, source_name, target_name, distance=10.0, qber=0.01, channel_type="Fiber"):
         if source_name in self.nodes and target_name in self.nodes:
-            channel = QuantumChannel(self.nodes[source_name], self.nodes[target_name], qber, distance)
+            if channel_type == "Satellite":
+                # Create a free space channel but wrapped to be compatible with routing
+                channel = QuantumChannel(self.nodes[source_name], self.nodes[target_name], qber, distance)
+                channel.channel_type = "Satellite"
+            else:
+                channel = QuantumChannel(self.nodes[source_name], self.nodes[target_name], qber, distance)
+                channel.channel_type = "Fiber"
             self.channels.append(channel)
             return channel
         return None
 
     def get_path(self, start_node, end_node):
-        """Simple pathfinding for the network (BFS)."""
-        # For now, we return a simple list of channels if they exist
-        # In a real commercial app, this would be a full Dijkstra
-        path = []
+        """Finds the optimal path between two nodes using Dijkstra's algorithm based on 3D distance and channel loss."""
+        if start_node not in self.nodes or end_node not in self.nodes:
+            return []
+
+        import heapq
+        
+        # Build adjacency list
+        adj = {node: [] for node in self.nodes}
         for ch in self.channels:
-            if ch.source.name == start_node and ch.target.name == end_node:
-                path.append(ch)
-                return path
-        return None
+            adj[ch.source.name].append((ch.target.name, ch))
+            adj[ch.target.name].append((ch.source.name, ch))
+
+        distances = {node: float('inf') for node in self.nodes}
+        distances[start_node] = 0
+        previous_nodes = {node: None for node in self.nodes}
+        pq = [(0, start_node)]
+        
+        while pq:
+            current_distance, current_node = heapq.heappop(pq)
+            
+            if current_node == end_node:
+                break
+                
+            if current_distance > distances[current_node]:
+                continue
+                
+            for neighbor, channel in adj[current_node]:
+                # Cost function: distance weighted by QBER (higher QBER = higher cost)
+                # For satellites, we might add extra cost
+                multiplier = 1.5 if getattr(channel, 'channel_type', 'Fiber') == 'Satellite' else 1.0
+                cost = channel.distance * (1 + channel.qber) * multiplier
+                distance = current_distance + cost
+                
+                if distance < distances[neighbor]:
+                    distances[neighbor] = distance
+                    previous_nodes[neighbor] = (current_node, channel)
+                    heapq.heappush(pq, (distance, neighbor))
+        
+        # Reconstruct path
+        path_channels = []
+        curr = end_node
+        while previous_nodes[curr] is not None:
+            prev_node, channel = previous_nodes[curr]
+            path_channels.insert(0, channel)
+            curr = prev_node
+            
+        return path_channels if curr == start_node else []
 
 def measure(state, basis='Z'):
     """Measures a qubit in the specified basis ('Z' or 'X')."""
