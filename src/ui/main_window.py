@@ -103,6 +103,7 @@ class App(ctk.CTk):
         self.tabview.add("Bloch Sphere")
         self.tabview.add("Interactive Lab")
         self.tabview.add("AI Security")
+        self.tabview.add("Quantum Messenger")
         self.tabview.add("Detailed Log")
         self.tabview.add("Security Analysis")
 
@@ -189,6 +190,25 @@ class App(ctk.CTk):
         
         self.ai_opt_label = ctk.CTkLabel(self.ai_frame, text="AI Optimization Suggestion: -")
         self.ai_opt_label.pack(pady=10)
+
+        # Quantum Messenger Tab
+        self.chat_frame = self.tabview.tab("Quantum Messenger")
+        self.chat_frame.grid_columnconfigure(0, weight=1)
+        self.chat_frame.grid_rowconfigure(0, weight=1)
+        
+        self.chat_display = ctk.CTkTextbox(self.chat_frame, width=800, height=400)
+        self.chat_display.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
+        
+        self.chat_input_frame = ctk.CTkFrame(self.chat_frame)
+        self.chat_input_frame.grid(row=1, column=0, padx=10, pady=10, sticky="ew")
+        
+        self.chat_entry = ctk.CTkEntry(self.chat_input_frame, placeholder_text="Type your message here...", width=600)
+        self.chat_entry.pack(side="left", padx=10, pady=10, fill="x", expand=True)
+        
+        self.send_btn = ctk.CTkButton(self.chat_input_frame, text="Encrypt & Send", command=self.send_message)
+        self.send_btn.pack(side="right", padx=10, pady=10)
+        
+        self.current_key = None
 
         # Detailed Log Tab
         self.log_text = ctk.CTkTextbox(self.tabview.tab("Detailed Log"), width=800, height=500)
@@ -316,6 +336,11 @@ class App(ctk.CTk):
         results['final_errors'] = final_errors
         
         self.last_results = results
+        
+        # Update current key for messenger
+        if len(corrected_bits) > 0:
+            self.current_key = "".join(map(str, corrected_bits))
+            self.chat_display.insert("end", f"--- NEW SECURE KEY GENERATED ({len(corrected_bits)} bits) ---\n")
 
         # Security Score Calculation
         sec_score = 100
@@ -421,6 +446,23 @@ class App(ctk.CTk):
             self.tabview.set("Interactive Lab")
         else:
             self.lab_step_btn.configure(state="disabled")
+
+    def send_message(self):
+        msg = self.chat_entry.get()
+        if not msg: return
+        if not self.current_key:
+            self.chat_display.insert("end", "ERROR: No secure key available. Run simulation first!\n")
+            return
+            
+        # Simplified XOR encryption for demonstration
+        encrypted = "".join([chr(ord(c) ^ int(self.current_key[i % len(self.current_key)])) for i, c in enumerate(msg)])
+        decrypted = "".join([chr(ord(c) ^ int(self.current_key[i % len(self.current_key)])) for i, c in enumerate(encrypted)])
+        
+        self.chat_display.insert("end", f"Alice (Original): {msg}\n")
+        self.chat_display.insert("end", f"Channel (Encrypted): {encrypted.encode('utf-8').hex()}\n")
+        self.chat_display.insert("end", f"Bob (Decrypted): {decrypted}\n\n")
+        self.chat_entry.delete(0, "end")
+        self.chat_display.see("end")
 
 if __name__ == "__main__":
     app = App()
