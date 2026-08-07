@@ -106,6 +106,7 @@ class App(ctk.CTk):
         self.tabview.add("AI Security")
         self.tabview.add("Quantum Messenger")
         self.tabview.add("City Network View")
+        self.tabview.add("VR Explorer 3D")
         self.tabview.add("Simulation History")
         self.tabview.add("Detailed Log")
         self.tabview.add("Security Analysis")
@@ -226,6 +227,35 @@ class App(ctk.CTk):
         self.canvas_city.get_tk_widget().grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
         
         self.draw_city_network()
+
+        # VR Explorer 3D Tab
+        self.vr_frame = self.tabview.tab("VR Explorer 3D")
+        self.vr_frame.grid_columnconfigure(0, weight=1)
+        self.vr_frame.grid_rowconfigure(1, weight=1)
+        
+        self.vr_ctrl_frame = ctk.CTkFrame(self.vr_frame)
+        self.vr_ctrl_frame.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
+        
+        self.vr_rand_btn = ctk.CTkButton(self.vr_ctrl_frame, text="Generate Random 3D Universe", command=self.randomize_vr)
+        self.vr_rand_btn.pack(side="left", padx=10, pady=10)
+        
+        self.vr_fly_btn = ctk.CTkButton(self.vr_ctrl_frame, text="Start VR Fly-through", command=self.toggle_vr_fly)
+        self.vr_fly_btn.pack(side="left", padx=10, pady=10)
+        
+        self.vr_label = ctk.CTkLabel(self.vr_ctrl_frame, text="Interactive 3D Mode: Use mouse to rotate and zoom")
+        self.vr_label.pack(side="left", padx=20)
+        
+        self.is_flying = False
+        self.fly_angle = 0
+
+        self.fig_vr = plt.subplots(figsize=(8, 6), dpi=100, subplot_kw={'projection': '3d'})[0]
+        self.fig_vr.patch.set_facecolor('#0a0a0a')
+        self.ax_vr = self.fig_vr.axes[0]
+        self.ax_vr.set_facecolor('#0a0a0a')
+        self.canvas_vr = FigureCanvasTkAgg(self.fig_vr, master=self.vr_frame)
+        self.canvas_vr.get_tk_widget().grid(row=1, column=0, padx=10, pady=10, sticky="nsew")
+        
+        self.draw_vr_universe()
 
         # Simulation History Tab
         self.history_frame = self.tabview.tab("Simulation History")
@@ -506,33 +536,69 @@ class App(ctk.CTk):
 
     def draw_city_network(self):
         self.ax_city.clear()
-        # Draw a simulated city grid
         for i in range(0, 10, 2):
             self.ax_city.axhline(i, color='#333333', lw=1, zorder=1)
             self.ax_city.axvline(i, color='#333333', lw=1, zorder=1)
-            
-        # Draw Nodes at specific "city locations"
-        locations = {
-            "Data Center (Alice)": (1, 8),
-            "Repeater 1": (5, 5),
-            "Repeater 2": (2, 3),
-            "Government Office (Bob)": (8, 2)
-        }
-        
+        locations = {"Data Center (Alice)": (1, 8), "Repeater 1": (5, 5), "Repeater 2": (2, 3), "Government Office (Bob)": (8, 2)}
         for name, pos in locations.items():
             color = '#3a7ebf' if "Alice" in name or "Bob" in name else '#f39c12'
             self.ax_city.scatter(pos[0], pos[1], s=300, c=color, edgecolors='white', zorder=5)
             self.ax_city.text(pos[0], pos[1]+0.3, name, color='white', ha='center', fontsize=8)
-            
-        # Draw Fiber Links
         self.ax_city.plot([1, 5], [8, 5], color='#2ecc71', lw=2, alpha=0.6, zorder=2)
         self.ax_city.plot([5, 8], [5, 2], color='#2ecc71', lw=2, alpha=0.6, zorder=2)
-        
-        self.ax_city.set_xlim(0, 10)
-        self.ax_city.set_ylim(0, 10)
+        self.ax_city.set_xlim(0, 10); self.ax_city.set_ylim(0, 10)
         self.ax_city.set_title("Metropolitan Quantum Key Distribution Network", color='white', pad=20)
         self.ax_city.set_axis_off()
         self.canvas_city.draw()
+
+    def randomize_vr(self):
+        self.network = QuantumNetwork()
+        self.network.add_node("Alice", pos=(0, 0, 0))
+        self.network.add_node("Bob", pos=(10, 10, 10))
+        for i in range(5):
+            self.network.add_node(f"Repeater_{i}")
+        for i in range(2):
+            self.network.add_node(f"Sat_{i}", node_type="Satellite", pos=(np.random.uniform(0, 10), np.random.uniform(0, 10), 20))
+        self.draw_vr_universe()
+
+    def draw_vr_universe(self):
+        self.ax_vr.clear()
+        self.ax_vr.set_facecolor('#0a0a0a')
+        self.ax_vr.grid(False)
+        self.ax_vr.w_xaxis.line.set_color((1.0, 1.0, 1.0, 0.0))
+        self.ax_vr.w_yaxis.line.set_color((1.0, 1.0, 1.0, 0.0))
+        self.ax_vr.w_zaxis.line.set_color((1.0, 1.0, 1.0, 0.0))
+        self.ax_vr.set_xticks([]); self.ax_vr.set_yticks([]); self.ax_vr.set_zticks([])
+        
+        for name, node in self.network.nodes.items():
+            x, y, z = node.pos
+            color = '#00ffff' if node.node_type == "EndNode" else ('#ff00ff' if node.node_type == "Satellite" else '#00ff00')
+            self.ax_vr.scatter([x], [y], [z], s=200, c=color, edgecolors='white', depthshade=True)
+            self.ax_vr.text(x, y, z+1, name, color='white', fontsize=7, ha='center')
+            
+        # Draw connections as glowing lines
+        nodes = list(self.network.nodes.values())
+        for i in range(len(nodes)-1):
+            p1, p2 = nodes[i].pos, nodes[i+1].pos
+            self.ax_vr.plot([p1[0], p2[0]], [p1[1], p2[1]], [p1[2], p2[2]], color='#00ffff', alpha=0.3, lw=1)
+            
+        self.ax_vr.set_title("Quantum VR Universe Explorer", color='white', fontsize=14)
+        self.canvas_vr.draw()
+
+    def toggle_vr_fly(self):
+        self.is_flying = not self.is_flying
+        if self.is_flying:
+            self.vr_fly_btn.configure(text="Stop VR Fly-through", fg_color="red")
+            self.animate_vr()
+        else:
+            self.vr_fly_btn.configure(text="Start VR Fly-through", fg_color=["#3a7ebf", "#1f538d"])
+
+    def animate_vr(self):
+        if self.is_flying:
+            self.fly_angle = (self.fly_angle + 2) % 360
+            self.ax_vr.view_init(elev=20, azim=self.fly_angle)
+            self.canvas_vr.draw_idle()
+            self.after(50, self.animate_vr)
 
 if __name__ == "__main__":
     app = App()

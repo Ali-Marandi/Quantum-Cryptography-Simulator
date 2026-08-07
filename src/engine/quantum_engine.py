@@ -113,9 +113,10 @@ class QuantumChannel:
 
 class QuantumNode:
     """Represents a node in a quantum network."""
-    def __init__(self, name, node_type="EndNode"):
+    def __init__(self, name, node_type="EndNode", pos=(0, 0, 0)):
         self.name = name
         self.node_type = node_type # EndNode, Repeater, or Satellite
+        self.pos = pos # (x, y, z) coordinates
         self.keys = {} # Store keys shared with other nodes
 
 class FreeSpaceChannel:
@@ -148,8 +149,10 @@ class QuantumNetwork:
         self.nodes = {}
         self.channels = []
 
-    def add_node(self, name, node_type="EndNode"):
-        node = QuantumNode(name, node_type)
+    def add_node(self, name, node_type="EndNode", pos=None):
+        if pos is None:
+            pos = (np.random.uniform(0, 10), np.random.uniform(0, 10), np.random.uniform(0, 10))
+        node = QuantumNode(name, node_type, pos)
         self.nodes[name] = node
         return node
 
